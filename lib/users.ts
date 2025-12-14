@@ -9,6 +9,11 @@ export interface User {
     _id: string;
     name: string;
     email: string;
+    role?: 'admin' | 'moderator' | 'user';
+    isVerified?: boolean;
+    isSuspended?: boolean;
+    isActive?: boolean;
+    isDeleted?: boolean;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -61,5 +66,13 @@ export const updateUser = async (id: string, data: UpdateUserData): Promise<User
  */
 export const deleteUser = async (id: string): Promise<void> => {
     await api.delete(`/users/${id}`);
+};
+
+/**
+ * Approve (verify) a user
+ */
+export const approveUser = async (id: string): Promise<User> => {
+    const response = await api.patch<{ user: User }>(`/users/${id}/verify`);
+    return response.data!.user;
 };
 

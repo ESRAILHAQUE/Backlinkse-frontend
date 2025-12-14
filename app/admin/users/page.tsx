@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, MoreHorizontal, Eye, Ban, Trash2, Mail, UserPlus, Download, RefreshCcw } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getAllUsers, deleteUser, type User } from "@/lib/users"
+import { getAllUsers, deleteUser, approveUser, type User } from "@/lib/users"
+import { toast } from "sonner"
 
 interface UserWithExtras extends User {
   plan?: string
@@ -65,6 +66,24 @@ export default function UsersManagerPage() {
       user.email.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  const formatStatus = (user: UserWithExtras) => {
+    if (user.isDeleted) return "deleted"
+    if (user.isSuspended) return "suspended"
+    if (!user.isActive) return "inactive"
+    if (user.isVerified === false) return "pending"
+    return "active"
+  }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveUser(id)
+      toast.success("User approved")
+      await fetchUsers()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to approve user")
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -106,7 +125,7 @@ export default function UsersManagerPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-2xl font-bold">
-              {isLoading ? "..." : users.filter((u) => u.status === "active").length}
+              {isLoading ? "..." : users.filter((u) => formatStatus(u) === "active").length}
             </p>
             <p className="text-sm text-muted-foreground">Active Users</p>
           </CardContent>
@@ -128,7 +147,7 @@ export default function UsersManagerPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-2xl font-bold">
-              {isLoading ? "..." : users.filter((u) => u.status === "suspended").length}
+              {isLoading ? "..." : users.filter((u) => formatStatus(u) === "suspended").length}
             </p>
             <p className="text-sm text-muted-foreground">Suspended</p>
           </CardContent>
@@ -165,9 +184,8 @@ export default function UsersManagerPage() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">User</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Plan</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Role</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Orders</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Joined</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                 </tr>
@@ -203,14 +221,24 @@ export default function UsersManagerPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant="outline">{user.plan || "N/A"}</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={user.status === "active" ? "default" : "destructive"}>
-                          {user.status || "active"}
+                        <Badge variant="outline" className="capitalize">
+                          {user.role || "user"}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">{user.orders || 0}</td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant={
+                            formatStatus(user) === "active"
+                              ? "default"
+                              : formatStatus(user) === "pending"
+                                ? "secondary"
+                                : "destructive"
+                          }
+                          className="capitalize"
+                        >
+                          {formatStatus(user)}
+                        </Badge>
+                      </td>
                       <td className="py-3 px-4 text-muted-foreground">{user.joined || "N/A"}</td>
                       <td className="py-3 px-4 text-right">
                         <DropdownMenu>
@@ -228,9 +256,12 @@ export default function UsersManagerPage() {
                               <Mail className="h-4 w-4 mr-2" />
                               Send Email
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Ban className="h-4 w-4 mr-2" />
-                              {user.status === "active" ? "Suspend" : "Activate"}
+                            <DropdownMenuItem
+                              onClick={() => handleApprove(user._id)}
+                              disabled={user.isVerified}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              {user.isVerified ? "Approved" : "Approve"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
