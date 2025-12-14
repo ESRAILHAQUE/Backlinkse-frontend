@@ -27,6 +27,11 @@ export interface CreateUserData {
 export interface UpdateUserData {
     name?: string;
     email?: string;
+    role?: 'admin' | 'moderator' | 'user';
+    isVerified?: boolean;
+    isSuspended?: boolean;
+    isActive?: boolean;
+    isDeleted?: boolean;
 }
 
 /**
@@ -73,6 +78,29 @@ export const deleteUser = async (id: string): Promise<void> => {
  */
 export const approveUser = async (id: string): Promise<User> => {
     const response = await api.patch<{ user: User }>(`/users/${id}/verify`);
+    return response.data!.user;
+};
+
+/**
+ * Suspend a user (disable access)
+ */
+export const suspendUser = async (id: string): Promise<User> => {
+    const response = await api.patch<{ user: User }>(`/users/${id}`, {
+        isSuspended: true,
+        isActive: false,
+    });
+    return response.data!.user;
+};
+
+/**
+ * Activate a user (re-enable access)
+ */
+export const activateUser = async (id: string): Promise<User> => {
+    const response = await api.patch<{ user: User }>(`/users/${id}`, {
+        isSuspended: false,
+        isActive: true,
+        isDeleted: false,
+    });
     return response.data!.user;
 };
 

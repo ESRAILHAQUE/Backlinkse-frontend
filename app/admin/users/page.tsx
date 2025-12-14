@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, MoreHorizontal, Eye, Ban, Trash2, Mail, UserPlus, Download, RefreshCcw } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getAllUsers, deleteUser, approveUser, type User } from "@/lib/users"
+import { getAllUsers, deleteUser, approveUser, suspendUser, activateUser, type User } from "@/lib/users"
 import { toast } from "sonner"
 
 interface UserWithExtras extends User {
@@ -81,6 +81,21 @@ export default function UsersManagerPage() {
       await fetchUsers()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to approve user")
+    }
+  }
+
+  const handleSuspendToggle = async (user: UserWithExtras) => {
+    try {
+      if (user.isSuspended) {
+        await activateUser(user._id)
+        toast.success("User activated")
+      } else {
+        await suspendUser(user._id)
+        toast.success("User suspended")
+      }
+      await fetchUsers()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update user status")
     }
   }
 
@@ -262,6 +277,10 @@ export default function UsersManagerPage() {
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {user.isVerified ? "Approved" : "Approve"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSuspendToggle(user)}>
+                              <Ban className="h-4 w-4 mr-2" />
+                              {user.isSuspended ? "Activate" : "Suspend"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
