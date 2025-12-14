@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
 import { login } from "@/lib/auth"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -26,8 +27,13 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      await login({ email, password })
-      router.push("/dashboard")
+      const res = await login({ email, password })
+      if (res.user?.isVerified === false) {
+        toast.info("Your account is pending admin approval.")
+        router.push("/pending-approval")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.")
     } finally {

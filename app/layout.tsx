@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { LiveChatWidget } from "@/components/live-chat-widget";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -130,6 +131,7 @@ export default function RootLayout({
         {children}
         <Analytics />
         <LiveChatWidget />
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

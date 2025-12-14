@@ -21,6 +21,7 @@ export interface AuthResponse {
         _id: string;
         name: string;
         email: string;
+        role?: "admin" | "moderator" | "user";
         isVerified?: boolean;
         isSuspended?: boolean;
         isActive?: boolean;
