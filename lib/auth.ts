@@ -73,6 +73,9 @@ export const register = async (data: RegisterData): Promise<AuthResponse> => {
 export const getCurrentUser = async (userId?: string): Promise<any> => {
     const endpoint = userId ? `/auth/me?userId=${userId}` : '/auth/me';
     const response = await api.get<{ user: any }>(endpoint);
+    if (response.data?.user) {
+        setUser(response.data.user);
+    }
     return response.data?.user;
 };
 
