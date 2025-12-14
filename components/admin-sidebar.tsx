@@ -27,7 +27,10 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { getUser, removeAuthToken } from "@/lib/api"
+import { toast } from "sonner"
 
 const sidebarSections = [
   {
@@ -74,6 +77,27 @@ interface AdminSidebarProps {
 export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
   const pathname = usePathname()
   const [expandedSections, setExpandedSections] = useState<string[]>(sidebarSections.map((s) => s.title))
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const u = getUser()
+    setUser(u)
+  }, [])
+
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "A"
+
+  const handleLogout = () => {
+    removeAuthToken()
+    toast.success("Signed out")
+    router.push("/admin/login")
+  }
 
   const toggleSection = (title: string) => {
     setExpandedSections((prev) => (prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]))
@@ -151,11 +175,11 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
         <div className="p-4 border-t border-border shrink-0">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
-              A
+              {initials}
             </div>
             <div>
-              <div className="text-sm font-medium">Admin</div>
-              <div className="text-xs text-muted-foreground">Super Admin</div>
+              <div className="text-sm font-medium">{user?.name || "Admin"}</div>
+              <div className="text-xs text-muted-foreground capitalize">{user?.role || "admin"}</div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -165,10 +189,8 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
                 View Site
               </Link>
             </Button>
-            <Button variant="outline" size="sm" className="bg-transparent" asChild>
-              <Link href="/admin/login">
-                <LogOut className="h-4 w-4" />
-              </Link>
+            <Button variant="outline" size="sm" className="bg-transparent" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>

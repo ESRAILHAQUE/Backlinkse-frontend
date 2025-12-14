@@ -28,9 +28,18 @@ export default function LoginPage() {
 
     try {
       const res = await login({ email, password })
-      if (res.user?.isVerified === false) {
+      const isVerified = res.user?.isVerified !== false
+      const role = res.user?.role || "user"
+
+      if (!isVerified) {
         toast.info("Your account is pending admin approval.")
         router.push("/pending-approval")
+        return
+      }
+
+      // Route by role
+      if (role === "admin" || role === "moderator") {
+        router.push("/admin")
       } else {
         router.push("/dashboard")
       }

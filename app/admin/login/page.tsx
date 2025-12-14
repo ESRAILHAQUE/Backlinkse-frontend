@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff, Shield, Lock } from "lucide-react"
+import { login } from "@/lib/auth"
+import { toast } from "sonner"
 
 export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -24,14 +26,28 @@ export default function AdminLoginPage() {
     setLoading(true)
     setError("")
 
-    // Demo admin credentials check
-    if (email === "admin@backlinkse.com" && password === "admin123") {
-      // In production, this would be a real auth check
-      localStorage.setItem("adminAuth", "true")
+    try {
+      const res = await login({ email, password })
+      const role = res.user?.role || "user"
+      const isVerified = res.user?.isVerified !== false
+
+      if (!isVerified) {
+        toast.info("Your account is pending admin approval.")
+        router.push("/pending-approval")
+        return
+      }
+
+      if (role !== "admin" && role !== "moderator") {
+        setError("Unauthorized: admin or moderator role required.")
+        toast.error("You are not authorized for the admin panel.")
+        return
+      }
+
       router.push("/admin")
-    } else {
-      setError("Invalid credentials. Use admin@backlinkse.com / admin123")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid credentials.")
     }
+
     setLoading(false)
   }
 

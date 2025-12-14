@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Link2,
@@ -20,6 +20,9 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
+import { getUser, removeAuthToken } from "@/lib/api"
+import { toast } from "sonner"
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -42,6 +45,27 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const u = getUser()
+    setUser(u)
+  }, [])
+
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "JD"
+
+  const handleLogout = () => {
+    removeAuthToken()
+    toast.success("Signed out")
+    router.push("/login")
+  }
 
   return (
     <>
@@ -104,18 +128,16 @@ export function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-              JD
+              {initials}
             </div>
             <div>
-              <div className="text-sm font-medium">John Doe</div>
-              <div className="text-xs text-muted-foreground">Growth Plan</div>
+              <div className="text-sm font-medium">{user?.name || "User"}</div>
+              <div className="text-xs text-muted-foreground capitalize">{user?.role || "user"}</div>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
-            <Link href="/">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Link>
+          <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
           </Button>
         </div>
       </aside>
