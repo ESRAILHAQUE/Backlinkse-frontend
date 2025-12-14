@@ -26,6 +26,7 @@ import { toast } from "sonner"
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Profile", href: "/dashboard/profile", icon: Users },
   { name: "My Projects", href: "/dashboard/projects", icon: FolderKanban },
   { name: "Link Building Packages", href: "/dashboard/link-building", icon: Link2 },
   { name: "Guest Posting", href: "/dashboard/guest-posting", icon: FileEdit },

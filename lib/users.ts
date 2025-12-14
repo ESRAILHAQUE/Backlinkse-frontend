@@ -82,6 +82,29 @@ export const approveUser = async (id: string): Promise<User> => {
 };
 
 /**
+ * Self: get my profile
+ */
+export const getMyProfile = async (): Promise<User> => {
+    const response = await api.get<{ user: User }>('/users/me/profile');
+    return response.data!.user;
+};
+
+/**
+ * Self: update my profile
+ */
+export const updateMyProfile = async (data: { name?: string; email?: string }): Promise<User> => {
+    const response = await api.patch<{ user: User }>('/users/me/profile', data);
+    return response.data!.user;
+};
+
+/**
+ * Self: delete my profile (soft delete)
+ */
+export const deleteMyProfile = async (): Promise<void> => {
+    await api.delete('/users/me/profile');
+};
+
+/**
  * Suspend a user (disable access)
  */
 export const suspendUser = async (id: string): Promise<User> => {
