@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { LiveChatWidget } from "@/components/live-chat-widget";
 import "./globals.css";
-
-const _inter = Inter({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://backlinkse.com"),

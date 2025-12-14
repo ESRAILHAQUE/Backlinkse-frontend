@@ -11,6 +11,8 @@ interface LiveChatSettings {
   supportEmail: string
 }
 
+const CRISP_ID = process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID
+
 export function LiveChatWidget() {
   const pathname = usePathname()
   const [settings, setSettings] = useState<LiveChatSettings | null>(null)
@@ -22,10 +24,11 @@ export function LiveChatWidget() {
     } else {
       // Default settings
       setSettings({
-        enabled: true,
+        // Enable only if a valid Crisp ID is provided
+        enabled: !!CRISP_ID && CRISP_ID !== "your-crisp-website-id",
         widgetScript: `
           window.$crisp = [];
-          window.CRISP_WEBSITE_ID = "your-crisp-website-id";
+          window.CRISP_WEBSITE_ID = "${CRISP_ID ?? "your-crisp-website-id"}";
           (function() {
             var d = document;
             var s = d.createElement("script");
@@ -52,7 +55,8 @@ export function LiveChatWidget() {
       return false
     }
 
-    if (!shouldDisplay()) return
+    // Skip loading if disabled or placeholder widget ID
+    if (!shouldDisplay() || settings.widgetScript.includes("your-crisp-website-id")) return
 
     const script = document.createElement("script")
     script.innerHTML = settings.widgetScript

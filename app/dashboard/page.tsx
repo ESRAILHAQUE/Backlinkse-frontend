@@ -1,33 +1,75 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Link2, TrendingUp, Globe, ArrowUpRight, Clock } from "lucide-react"
 import Link from "next/link"
-
-const stats = [
-  { label: "Total Backlinks", value: "47", change: "+12 this month", icon: Link2 },
-  { label: "Avg Domain Rating", value: "54", change: "+3 from last month", icon: TrendingUp },
-  { label: "Active Campaigns", value: "2", change: "1 completing soon", icon: Globe },
-  { label: "Est. Traffic Value", value: "$23.4K", change: "+18% growth", icon: ArrowUpRight },
-]
-
-const recentActivity = [
-  { action: "New backlink placed", site: "techcrunch.com", dr: 94, time: "2 hours ago" },
-  { action: "Report generated", site: "December 2024", dr: null, time: "1 day ago" },
-  { action: "New backlink placed", site: "searchenginejournal.com", dr: 88, time: "3 days ago" },
-  { action: "Order completed", site: "Growth Package Q4", dr: null, time: "5 days ago" },
-]
+import { getDashboardStats, getRecentActivity, getCampaignProgress } from "@/lib/dashboard"
+import { Activity, CampaignProgress } from "@/lib/dashboard"
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState({
+    totalBacklinks: 0,
+    avgDomainRating: 0,
+    activeCampaigns: 0,
+    estTrafficValue: "$0K",
+    backlinksChange: "",
+  })
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [campaign, setCampaign] = useState<CampaignProgress | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [statsData, activityData, campaignData] = await Promise.all([
+          getDashboardStats(),
+          getRecentActivity(),
+          getCampaignProgress(),
+        ])
+        setStats(statsData)
+        setRecentActivity(activityData)
+        setCampaign(campaignData)
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const statsList = [
+    { label: "Total Backlinks", value: stats.totalBacklinks.toString(), change: stats.backlinksChange, icon: Link2 },
+    { label: "Avg Domain Rating", value: stats.avgDomainRating.toString(), change: "+3 from last month", icon: TrendingUp },
+    { label: "Active Campaigns", value: stats.activeCampaigns.toString(), change: "1 completing soon", icon: Globe },
+    { label: "Est. Traffic Value", value: stats.estTrafficValue, change: "+18% growth", icon: ArrowUpRight },
+  ]
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, John. Here's your link building overview.</p>
+        <p className="text-muted-foreground">Welcome back. Here's your link building overview.</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statsList.map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardDescription>{stat.label}</CardDescription>
@@ -43,28 +85,30 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Campaign Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Progress</CardTitle>
-            <CardDescription>Growth Package - Q4 2024</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between text-sm">
-              <span>Links Delivered</span>
-              <span className="font-medium">12 / 15</span>
-            </div>
-            <div className="h-2 rounded-full bg-secondary">
-              <div className="h-2 rounded-full bg-primary" style={{ width: "80%" }} />
-            </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Next report: Dec 15, 2024</span>
-              <span>3 remaining</span>
-            </div>
-            <Button variant="outline" className="w-full bg-transparent" asChild>
-              <Link href="/dashboard/orders">View Order Details</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {campaign && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Progress</CardTitle>
+              <CardDescription>{campaign.packageName}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span>Links Delivered</span>
+                <span className="font-medium">{campaign.linksDelivered} / {campaign.linksTotal}</span>
+              </div>
+              <div className="h-2 rounded-full bg-secondary">
+                <div className="h-2 rounded-full bg-primary" style={{ width: `${campaign.progress}%` }} />
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Next report: {new Date(campaign.nextReportDate).toLocaleDateString()}</span>
+                <span>{campaign.remaining} remaining</span>
+              </div>
+              <Button variant="outline" className="w-full bg-transparent" asChild>
+                <Link href="/dashboard/orders">View Order Details</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
         <Card>
@@ -74,28 +118,32 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-start justify-between gap-4 border-b border-border pb-4 last:border-0 last:pb-0"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{item.action}</p>
-                    <p className="text-xs text-muted-foreground">{item.site}</p>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start justify-between gap-4 border-b border-border pb-4 last:border-0 last:pb-0"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{item.action}</p>
+                      <p className="text-xs text-muted-foreground">{item.site}</p>
+                    </div>
+                    <div className="text-right">
+                      {item.dr && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          DR {item.dr}
+                        </span>
+                      )}
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3" />
+                        {item.time}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    {item.dr && (
-                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        DR {item.dr}
-                      </span>
-                    )}
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <Clock className="h-3 w-3" />
-                      {item.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent activity</p>
+              )}
             </div>
           </CardContent>
         </Card>

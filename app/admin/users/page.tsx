@@ -1,63 +1,63 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, MoreHorizontal, Eye, Ban, Trash2, Mail, UserPlus, Download } from "lucide-react"
+import { Search, Filter, MoreHorizontal, Eye, Ban, Trash2, Mail, UserPlus, Download, RefreshCcw } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { getAllUsers, deleteUser, type User } from "@/lib/users"
 
-const users = [
-  {
-    id: 1,
-    name: "John Doe",
-    email: "john@example.com",
-    plan: "Growth",
-    status: "active",
-    orders: 12,
-    joined: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Sarah Johnson",
-    email: "sarah@company.com",
-    plan: "Pro",
-    status: "active",
-    orders: 8,
-    joined: "2024-01-10",
-  },
-  {
-    id: 3,
-    name: "Michael Chen",
-    email: "michael@startup.io",
-    plan: "Enterprise",
-    status: "active",
-    orders: 24,
-    joined: "2023-12-20",
-  },
-  {
-    id: 4,
-    name: "Emily Davis",
-    email: "emily@business.com",
-    plan: "Startup",
-    status: "suspended",
-    orders: 3,
-    joined: "2024-02-01",
-  },
-  {
-    id: 5,
-    name: "Alex Wilson",
-    email: "alex@tech.co",
-    plan: "Pro",
-    status: "active",
-    orders: 15,
-    joined: "2023-11-15",
-  },
-]
+interface UserWithExtras extends User {
+  plan?: string
+  status?: string
+  orders?: number
+  joined?: string
+}
 
 export default function UsersManagerPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [users, setUsers] = useState<UserWithExtras[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string>("")
+
+  const fetchUsers = async () => {
+    setIsLoading(true)
+    setError("")
+    try {
+      const response = await getAllUsers()
+      // Transform backend users to match frontend format
+      const transformedUsers: UserWithExtras[] = response.users.map((user) => ({
+        ...user,
+        plan: "Growth", // Default plan - can be extended when backend supports it
+        status: "active", // Default status - can be extended when backend supports it
+        orders: 0, // Default orders - can be extended when backend supports it
+        joined: user.createdAt ? new Date(user.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      }))
+      setUsers(transformedUsers)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users")
+      console.error("Error fetching users:", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return
+
+    try {
+      await deleteUser(id)
+      await fetchUsers() // Refresh the list
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete user")
+    }
+  }
 
   const filteredUsers = users.filter(
     (user) =>
@@ -74,6 +74,10 @@ export default function UsersManagerPage() {
           <p className="text-muted-foreground">Manage all registered users</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
+            <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -85,29 +89,47 @@ export default function UsersManagerPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-2xl font-bold">2,847</p>
+            <p className="text-2xl font-bold">{isLoading ? "..." : users.length}</p>
             <p className="text-sm text-muted-foreground">Total Users</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-2xl font-bold">2,654</p>
+            <p className="text-2xl font-bold">
+              {isLoading ? "..." : users.filter((u) => u.status === "active").length}
+            </p>
             <p className="text-sm text-muted-foreground">Active Users</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-2xl font-bold">156</p>
+            <p className="text-2xl font-bold">
+              {isLoading
+                ? "..."
+                : users.filter((u) => {
+                  const joinedDate = u.joined ? new Date(u.joined) : new Date()
+                  const now = new Date()
+                  return joinedDate.getMonth() === now.getMonth() && joinedDate.getFullYear() === now.getFullYear()
+                }).length}
+            </p>
             <p className="text-sm text-muted-foreground">New This Month</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-2xl font-bold">37</p>
+            <p className="text-2xl font-bold">
+              {isLoading ? "..." : users.filter((u) => u.status === "suspended").length}
+            </p>
             <p className="text-sm text-muted-foreground">Suspended</p>
           </CardContent>
         </Card>
@@ -151,59 +173,78 @@ export default function UsersManagerPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b last:border-0 hover:bg-secondary/30">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-                          {user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </div>
-                        <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant="outline">{user.plan}</Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={user.status === "active" ? "default" : "destructive"}>{user.status}</Badge>
-                    </td>
-                    <td className="py-3 px-4">{user.orders}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{user.joined}</td>
-                    <td className="py-3 px-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Mail className="h-4 w-4 mr-2" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Ban className="h-4 w-4 mr-2" />
-                            {user.status === "active" ? "Suspend" : "Activate"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      Loading users...
                     </td>
                   </tr>
-                ))}
+                ) : filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      No users found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <tr key={user._id} className="border-b last:border-0 hover:bg-secondary/30">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
+                            {user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </div>
+                          <div>
+                            <p className="font-medium">{user.name}</p>
+                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline">{user.plan || "N/A"}</Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={user.status === "active" ? "default" : "destructive"}>
+                          {user.status || "active"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">{user.orders || 0}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{user.joined || "N/A"}</td>
+                      <td className="py-3 px-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Send Email
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Ban className="h-4 w-4 mr-2" />
+                              {user.status === "active" ? "Suspend" : "Activate"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteUser(user._id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

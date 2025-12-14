@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,36 +9,52 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { MessageSquare, Plus, Clock, CheckCircle, AlertCircle } from "lucide-react"
-
-const tickets = [
-  {
-    id: "TKT-001",
-    subject: "Question about link placement",
-    status: "Open",
-    priority: "Medium",
-    created: "Dec 10, 2024",
-    lastUpdate: "2 hours ago",
-  },
-  {
-    id: "TKT-002",
-    subject: "Request for additional anchor text variation",
-    status: "In Progress",
-    priority: "Low",
-    created: "Dec 5, 2024",
-    lastUpdate: "1 day ago",
-  },
-  {
-    id: "TKT-003",
-    subject: "Invoice clarification",
-    status: "Resolved",
-    priority: "High",
-    created: "Nov 28, 2024",
-    lastUpdate: "5 days ago",
-  },
-]
+import { getAllTickets, createTicket, SupportTicket } from "@/lib/support"
 
 export default function SupportPage() {
   const [showNewTicket, setShowNewTicket] = useState(false)
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({
+    subject: "",
+    category: "",
+    priority: "Medium",
+    message: "",
+  })
+
+  useEffect(() => {
+    fetchTickets()
+  }, [])
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true)
+      const data = await getAllTickets()
+      setTickets(data)
+    } catch (error) {
+      console.error("Failed to fetch tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await createTicket({
+        subject: formData.subject,
+        category: formData.category as any,
+        priority: formData.priority as any,
+        message: formData.message,
+      })
+      setFormData({ subject: "", category: "", priority: "Medium", message: "" })
+      setShowNewTicket(false)
+      await fetchTickets()
+    } catch (error) {
+      console.error("Failed to create ticket:", error)
+      alert("Failed to create ticket")
+    }
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -51,6 +67,15 @@ export default function SupportPage() {
       default:
         return null
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Support Tickets</h1>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    )
   }
 
   return (
@@ -73,15 +98,25 @@ export default function SupportPage() {
             <CardDescription>Describe your issue and we'll get back to you shortly.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
-                <Input id="subject" placeholder="Brief description of your issue" />
+                <Input
+                  id="subject"
+                  placeholder="Brief description of your issue"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  required
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    required
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -95,21 +130,31 @@ export default function SupportPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
-                  <Select>
+                  <Select
+                    value={formData.priority}
+                    onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="message">Message</Label>
-                <Textarea id="message" placeholder="Describe your issue in detail..." rows={5} />
+                <Textarea
+                  id="message"
+                  placeholder="Describe your issue in detail..."
+                  rows={5}
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  required
+                />
               </div>
               <div className="flex gap-2">
                 <Button type="submit">Submit Ticket</Button>
@@ -129,39 +174,44 @@ export default function SupportPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border border-border"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{ticket.subject}</h3>
-                      <Badge
-                        variant={ticket.status === "Resolved" ? "secondary" : "default"}
-                        className="flex items-center gap-1"
-                      >
-                        {getStatusIcon(ticket.status)}
-                        {ticket.status}
-                      </Badge>
+            {tickets.length > 0 ? (
+              tickets.map((ticket) => (
+                <div
+                  key={ticket._id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border border-border"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                      <MessageSquare className="h-5 w-5" />
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      #{ticket.id} • Created {ticket.created} • Last update: {ticket.lastUpdate}
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{ticket.subject}</h3>
+                        <Badge
+                          variant={ticket.status === "Resolved" ? "secondary" : "default"}
+                          className="flex items-center gap-1"
+                        >
+                          {getStatusIcon(ticket.status)}
+                          {ticket.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        #{ticket.ticketNumber} • Created {new Date(ticket.createdAt).toLocaleDateString()} • Last
+                        update: {new Date(ticket.lastUpdate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{ticket.priority}</Badge>
+                    <Button variant="outline" size="sm">
+                      View Details
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{ticket.priority}</Badge>
-                  <Button variant="outline" size="sm">
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">No tickets found</p>
+            )}
           </div>
         </CardContent>
       </Card>
