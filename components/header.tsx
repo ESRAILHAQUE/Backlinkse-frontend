@@ -1,13 +1,27 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, ChevronDown } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { getUser, getAuthToken } from "@/lib/api"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [userRole, setUserRole] = useState<"admin" | "moderator" | "user" | null>(null)
+
+  const isAuthed = !!getAuthToken() && !!userRole
+  const dashboardHref = userRole === "admin" || userRole === "moderator" ? "/admin" : "/dashboard"
+
+  useEffect(() => {
+    const u = getUser()
+    if (u?.role) {
+      setUserRole(u.role)
+    } else {
+      setUserRole(null)
+    }
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background border-b border-border">
@@ -29,7 +43,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
               Services
@@ -65,7 +79,7 @@ export function Header() {
           >
             Case Studies
           </Link>
-          
+
           <Link
             href="/blog"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -81,12 +95,20 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm" className="rounded-full px-4" asChild>
-            <Link href="/login">Log In</Link>
-          </Button>
-          <Button size="sm" className="rounded-full px-6" asChild>
-            <Link href="/signup">Sign Up</Link>
-          </Button>
+          {isAuthed ? (
+            <Button size="sm" className="rounded-full px-6" asChild>
+              <Link href={dashboardHref}>Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className="rounded-full px-4" asChild>
+                <Link href="/login">Log In</Link>
+              </Button>
+              <Button size="sm" className="rounded-full px-6" asChild>
+                <Link href="/signup">Sign Up</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -135,12 +157,20 @@ export function Header() {
               Contact Us
             </Link>
             <div className="mt-4 flex flex-col gap-2">
-              <Button variant="outline" className="w-full rounded-full bg-transparent" asChild>
-                <Link href="/login">Log In</Link>
-              </Button>
-              <Button className="w-full rounded-full" asChild>
-                <Link href="/signup">Sign Up</Link>
-              </Button>
+              {isAuthed ? (
+                <Button className="w-full rounded-full" asChild>
+                  <Link href={dashboardHref}>Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" className="w-full rounded-full bg-transparent" asChild>
+                    <Link href="/login">Log In</Link>
+                  </Button>
+                  <Button className="w-full rounded-full" asChild>
+                    <Link href="/signup">Sign Up</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </nav>
         </div>
