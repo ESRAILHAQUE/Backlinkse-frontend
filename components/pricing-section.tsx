@@ -2,80 +2,55 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Check, Flame } from "lucide-react"
 
-const plans = [
+type PricingPlan = {
+  _id?: string
+  name: string
+  price: number
+  linksPerMonth?: string
+  features: string[]
+  popular: boolean
+  enabled: boolean
+  buttonText: string
+  buttonLink: string
+}
+
+const fallbackPlans: PricingPlan[] = [
   {
     name: "Starter",
-    price: "$1,500",
-    period: "/month",
-    description: "Perfect for small businesses starting their SEO journey",
-    features: [
-      "5 high-authority backlinks",
-      "DR 40+ websites",
-      "Manual outreach only",
-      "Monthly reporting",
-      "Anchor text optimization",
-      "Email support",
-    ],
-    cta: "Get Started",
-    highlighted: false,
+    price: 1500,
+    linksPerMonth: "5",
+    features: ["5 high-authority backlinks", "Monthly reporting", "Email support"],
+    popular: false,
+    enabled: true,
+    buttonText: "Get Started",
+    buttonLink: "/contact",
   },
   {
     name: "Pro",
-    price: "$3,500",
-    period: "/month",
-    description: "Ideal for growing businesses ready to scale their SEO",
-    features: [
-      "15 high-authority backlinks",
-      "DR 50+ websites",
-      "Manual outreach only",
-      "Bi-weekly reporting",
-      "Competitor analysis",
-      "Anchor text strategy",
-      "Priority support",
-      "Dashboard access",
-    ],
-    cta: "Get Started",
-    highlighted: false,
-  },
-  {
-    name: "Enterprise",
-    price: "$6,500",
-    period: "/month",
-    description: "For established brands with aggressive growth goals",
-    features: [
-      "25+ high-authority backlinks",
-      "DR 60+ websites",
-      "Dedicated account manager",
-      "Weekly reporting & calls",
-      "Full competitor analysis",
-      "Content creation included",
-      "Digital PR outreach",
-      "Custom dashboard",
-    ],
-    cta: "Get Started",
-    highlighted: true,
-  },
-  {
-    name: "Custom",
-    price: "Custom",
-    period: "",
-    description: "Tailored solutions for unique requirements",
-    features: [
-      "Unlimited backlinks",
-      "Custom DR requirements",
-      "Dedicated team",
-      "Custom reporting",
-      "Full-service SEO",
-      "Priority everything",
-      "SLA guarantee",
-      "White-label options",
-    ],
-    cta: "Contact Sales",
-    highlighted: false,
+    price: 3500,
+    linksPerMonth: "15",
+    features: ["15 high-authority backlinks", "Bi-weekly reporting", "Priority support"],
+    popular: true,
+    enabled: true,
+    buttonText: "Get Started",
+    buttonLink: "/contact",
   },
 ]
 
-export function PricingSection() {
+async function fetchPricing(): Promise<PricingPlan[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api/v1"
+  try {
+    const res = await fetch(`${baseUrl}/pricing`, { next: { revalidate: 300 } })
+    if (!res.ok) throw new Error("Failed to load pricing")
+    const data = await res.json()
+    return data?.data?.plans || fallbackPlans
+  } catch {
+    return fallbackPlans
+  }
+}
+
+export async function PricingSection() {
+  const plans = await fetchPricing()
   return (
     <section className="py-24 bg-background" id="pricing">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -93,25 +68,28 @@ export function PricingSection() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl border ${
-                plan.highlighted
-                  ? "border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20"
-                  : "border-border bg-background"
-              } p-6 transition-all hover:shadow-md`}
+              className={`relative rounded-2xl border ${plan.popular
+                ? "border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20"
+                : "border-border bg-background"
+                } p-6 transition-all hover:shadow-md`}
             >
-              {plan.highlighted && (
+              {plan.popular && (
                 <div className="absolute -top-3 right-4 flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
                   <Flame className="h-3 w-3" />
                   Popular
                 </div>
               )}
               <div>
-                <h3 className={`text-lg font-semibold ${plan.highlighted ? "text-primary" : ""}`}>{plan.name}</h3>
+                <h3 className={`text-lg font-semibold ${plan.popular ? "text-primary" : ""}`}>{plan.name}</h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">{plan.period}</span>
+                  <span className="text-3xl font-bold">
+                    {plan.price === 0 ? "Custom" : `$${plan.price.toLocaleString()}`}
+                  </span>
+                  <span className="text-muted-foreground text-sm">{plan.linksPerMonth ? "/month" : ""}</span>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                {plan.linksPerMonth && (
+                  <p className="mt-2 text-sm text-muted-foreground">{plan.linksPerMonth} links per month</p>
+                )}
               </div>
 
               <ul className="mt-6 space-y-3">
@@ -123,12 +101,8 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Button
-                className={`mt-6 w-full rounded-full ${plan.highlighted ? "" : "bg-foreground text-background hover:bg-foreground/90"}`}
-                variant={plan.highlighted ? "default" : "default"}
-                asChild
-              >
-                <Link href={plan.name === "Custom" ? "/contact" : "/contact"}>{plan.cta}</Link>
+              <Button className={`mt-6 w-full rounded-full ${plan.popular ? "" : "bg-foreground text-background hover:bg-foreground/90"}`} asChild>
+                <Link href={plan.buttonLink || "/contact"}>{plan.buttonText || "Get Started"}</Link>
               </Button>
             </div>
           ))}
