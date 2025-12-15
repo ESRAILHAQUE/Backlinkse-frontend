@@ -24,7 +24,7 @@ jobs:
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
           script: |
             set -e
-            FRONTEND_PATH="${FRONTEND_PATH:-/var/www/backlinkse-frontend}"
+            FRONTEND_PATH="${FRONTEND_PATH:-/var/www/Backlinkse/frontend}"
             FRONTEND_PORT="${FRONTEND_PORT:-3004}"
             cd "$FRONTEND_PATH"
             git fetch origin main
