@@ -1,7 +1,12 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { createOrder } from "@/lib/orders"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 const packages = [
   {
@@ -55,6 +60,30 @@ const packages = [
 ]
 
 export default function LinkBuildingPage() {
+  const router = useRouter()
+
+  const handleOrder = async (pkg: (typeof packages)[0]) => {
+    if (pkg.price === "Custom") {
+      router.push("/contact")
+      return
+    }
+    const numeric = Number(pkg.price.replace(/[^0-9.]/g, ""))
+    const linksTotal = parseInt(pkg.links, 10) || 1
+    try {
+      await createOrder({
+        packageName: `${pkg.name} - Link Building`,
+        packageType: "link-building",
+        linksTotal: linksTotal,
+        amount: numeric,
+        currency: "USD",
+      })
+      toast.success("Order placed! Check your orders page.")
+      router.push("/dashboard/orders")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to place order")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -88,7 +117,7 @@ export default function LinkBuildingPage() {
               <Button
                 className={`w-full ${pkg.popular ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}
               >
-                {pkg.price === "Custom" ? "Contact Sales" : "Get Started"}
+                {pkg.price === "Custom" ? "Contact Sales" : "Order Now"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </CardContent>
