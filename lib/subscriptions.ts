@@ -6,6 +6,7 @@ import { api } from './api';
 
 export interface Subscription {
     _id: string;
+    userId?: string | { _id: string; name: string; email: string }; // Can be populated with user info
     planName: string;
     price: number;
     billingCycle: 'Monthly' | 'Quarterly' | 'Yearly';
@@ -50,6 +51,22 @@ export const createSubscription = async (data: {
  */
 export const cancelSubscription = async (id: string): Promise<Subscription> => {
     const response = await api.patch<{ subscription: Subscription }>(`/subscriptions/${id}/cancel`);
+    return response.data!.subscription;
+};
+
+/**
+ * Get all subscriptions (Admin only)
+ */
+export const getAllSubscriptionsAdmin = async (): Promise<Subscription[]> => {
+    const response = await api.get<{ subscriptions: Subscription[] }>('/subscriptions/admin/all');
+    return response.data!.subscriptions;
+};
+
+/**
+ * Cancel subscription (Admin - can cancel any subscription)
+ */
+export const cancelSubscriptionAdmin = async (id: string): Promise<Subscription> => {
+    const response = await api.patch<{ subscription: Subscription }>(`/subscriptions/${id}/cancel-admin`);
     return response.data!.subscription;
 };
 
