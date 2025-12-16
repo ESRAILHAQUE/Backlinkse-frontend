@@ -1,69 +1,161 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Save, Trash2, GripVertical, ChevronUp, ChevronDown, HelpCircle } from "lucide-react"
-
-const faqs = [
-  {
-    id: 1,
-    question: "What types of backlinks do you build?",
-    answer: "We focus on high-quality, white-hat backlinks from authoritative websites...",
-    visible: true,
-  },
-  {
-    id: 2,
-    question: "How long until I see results?",
-    answer: "Most clients start seeing improvements in rankings within 2-3 months...",
-    visible: true,
-  },
-  {
-    id: 3,
-    question: "Do you offer refunds?",
-    answer: "Yes, we offer a satisfaction guarantee. If you're not happy with our service...",
-    visible: true,
-  },
-  {
-    id: 4,
-    question: "How Do We Communicate?",
-    answer:
-      "You can message our team 24/7 and you'll receive a same-day reply. Clients may also book a call anytime. We schedule regular meetings to review strategy and planning. You will receive a monthly update covering every backlink built and key insights related to your SEO goals.",
-    visible: true,
-  },
-]
+import { Plus, Save, Trash2, GripVertical, ChevronUp, ChevronDown, HelpCircle, Loader2 } from "lucide-react"
+import { getAllFAQs, createFAQ, updateFAQ, deleteFAQ, type FAQ } from "@/lib/faqs"
+import { toast } from "sonner"
 
 export default function FAQsManagerPage() {
-  const [items, setItems] = useState(faqs)
-  const [activeItem, setActiveItem] = useState<number | null>(1)
+  const [faqs, setFaqs] = useState<FAQ[]>([])
+  const [activeFAQId, setActiveFAQId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const handleSave = () => {
-    setSaving(true)
-    setTimeout(() => setSaving(false), 1000)
-  }
+  const activeFAQ = useMemo(() => faqs.find((f) => f._id === activeFAQId) || null, [faqs, activeFAQId])
 
-  const moveItem = (id: number, direction: "up" | "down") => {
-    const index = items.findIndex((i) => i.id === id)
-    if (direction === "up" && index > 0) {
-      const newList = [...items]
-      ;[newList[index - 1], newList[index]] = [newList[index], newList[index - 1]]
-      setItems(newList)
-    } else if (direction === "down" && index < items.length - 1) {
-      const newList = [...items]
-      ;[newList[index], newList[index + 1]] = [newList[index + 1], newList[index]]
-      setItems(newList)
+  const loadFAQs = async () => {
+    try {
+      setLoading(true)
+      const data = await getAllFAQs()
+      setFaqs(data)
+      if (!activeFAQId && data.length > 0) {
+        setActiveFAQId(data[0]._id)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load FAQs")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const addNewFAQ = () => {
-    const newId = Math.max(...items.map((i) => i.id)) + 1
-    setItems([...items, { id: newId, question: "New Question", answer: "Answer here...", visible: true }])
-    setActiveItem(newId)
+  useEffect(() => {
+    loadFAQs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const updateLocalFAQ = (id: string, changes: Partial<FAQ>) => {
+    setFaqs((prev) => prev.map((f) => (f._id === id ? { ...f, ...changes } : f)))
+  }
+
+  const handleFieldChange = (field: keyof FAQ, value: string | boolean) => {
+    if (!activeFAQ) return
+    updateLocalFAQ(activeFAQ._id, { [field]: value } as Partial<FAQ>)
+  }
+
+  const handleSave = async () => {
+    if (!activeFAQ) return
+    try {
+      setSaving(true)
+      await updateFAQ(activeFAQ._id, {
+        question: activeFAQ.question,
+        answer: activeFAQ.answer,
+        visible: activeFAQ.visible,
+        status: activeFAQ.status,
+        sortOrder: activeFAQ.sortOrder,
+      })
+      toast.success("FAQ saved successfully")
+      loadFAQs()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save FAQ")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddFAQ = async () => {
+    try {
+      setSaving(true)
+      const faq = await createFAQ({
+        question: "New Question",
+        answer: "Answer here...",
+        visible: true,
+        sortOrder: faqs.length,
+      })
+      toast.success("FAQ created")
+      setFaqs((prev) => [...prev, faq])
+      setActiveFAQId(faq._id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create FAQ")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteFAQ = async () => {
+    if (!activeFAQ) return
+    if (!confirm(`Are you sure you want to delete this FAQ?`)) return
+
+    try {
+      setSaving(true)
+      await deleteFAQ(activeFAQ._id)
+      toast.success("FAQ deleted")
+      const remaining = faqs.filter((f) => f._id !== activeFAQ._id)
+      setFaqs(remaining)
+      setActiveFAQId(remaining[0]?._id ?? null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete FAQ")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const moveFAQ = async (id: string, direction: "up" | "down") => {
+    const index = faqs.findIndex((f) => f._id === id)
+    if (
+      (direction === "up" && index === 0) ||
+      (direction === "down" && index === faqs.length - 1)
+    ) {
+      return
+    }
+
+    const newList = [...faqs]
+    const targetIndex = direction === "up" ? index - 1 : index + 1
+      ;[newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]]
+
+    // Update sort orders
+    newList.forEach((f, i) => {
+      f.sortOrder = i
+    })
+
+    setFaqs(newList)
+
+    // Update both FAQs in the backend
+    try {
+      await Promise.all([
+        updateFAQ(newList[index]._id, { sortOrder: newList[index].sortOrder }),
+        updateFAQ(newList[targetIndex]._id, { sortOrder: newList[targetIndex].sortOrder }),
+      ])
+      toast.success("Order updated")
+    } catch (err) {
+      toast.error("Failed to update order")
+      loadFAQs()
+    }
+  }
+
+  const handleVisibleToggle = async (visible: boolean) => {
+    if (!activeFAQ) return
+    updateLocalFAQ(activeFAQ._id, { visible })
+    try {
+      await updateFAQ(activeFAQ._id, { visible })
+      toast.success(`FAQ ${visible ? "shown" : "hidden"}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update FAQ")
+      loadFAQs()
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -75,11 +167,11 @@ export default function FAQsManagerPage() {
           <p className="text-muted-foreground">Manage frequently asked questions</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={addNewFAQ}>
+          <Button variant="outline" onClick={handleAddFAQ} disabled={saving}>
             <Plus className="h-4 w-4 mr-2" />
             Add FAQ
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !activeFAQ}>
             <Save className="h-4 w-4 mr-2" />
             {saving ? "Saving..." : "Save Changes"}
           </Button>
@@ -92,25 +184,26 @@ export default function FAQsManagerPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">All FAQs</CardTitle>
-              <CardDescription>{items.length} questions</CardDescription>
+              <CardDescription>{faqs.length} questions</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {items.map((item, index) => (
+              {faqs.map((faq, index) => (
                 <div
-                  key={item.id}
-                  className={`flex items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    activeItem === item.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                  }`}
-                  onClick={() => setActiveItem(item.id)}
+                  key={faq._id}
+                  className={`flex items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer ${activeFAQId === faq._id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-secondary/50"
+                    }`}
+                  onClick={() => setActiveFAQId(faq._id)}
                 >
                   <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab shrink-0" />
                   <HelpCircle className="h-4 w-4 text-primary shrink-0" />
-                  <p className="text-sm font-medium truncate flex-1">{item.question}</p>
+                  <p className="text-sm font-medium truncate flex-1">{faq.question}</p>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        moveItem(item.id, "up")
+                        moveFAQ(faq._id, "up")
                       }}
                       disabled={index === 0}
                       className="p-1 hover:bg-secondary rounded disabled:opacity-30"
@@ -120,9 +213,9 @@ export default function FAQsManagerPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        moveItem(item.id, "down")
+                        moveFAQ(faq._id, "down")
                       }}
-                      disabled={index === items.length - 1}
+                      disabled={index === faqs.length - 1}
                       className="p-1 hover:bg-secondary rounded disabled:opacity-30"
                     >
                       <ChevronDown className="h-3 w-3" />
@@ -136,38 +229,58 @@ export default function FAQsManagerPage() {
 
         {/* FAQ Editor */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Edit FAQ</CardTitle>
-              <CardDescription>Update question and answer content</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label>Question</Label>
-                <Input defaultValue={items.find((i) => i.id === activeItem)?.question} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Answer</Label>
-                <Textarea rows={6} defaultValue={items.find((i) => i.id === activeItem)?.answer} />
-              </div>
-
-              {/* Visibility */}
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Show on Website</p>
-                  <p className="text-sm text-muted-foreground">Display this FAQ on the homepage</p>
+          {activeFAQ ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit FAQ</CardTitle>
+                <CardDescription>Update question and answer content</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Question</Label>
+                  <Input
+                    value={activeFAQ.question}
+                    onChange={(e) => handleFieldChange("question", e.target.value)}
+                  />
                 </div>
-                <Switch defaultChecked={items.find((i) => i.id === activeItem)?.visible} />
-              </div>
 
-              {/* Delete */}
-              <Button variant="outline" className="text-destructive hover:bg-destructive/10 bg-transparent">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete FAQ
-              </Button>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label>Answer</Label>
+                  <Textarea
+                    rows={6}
+                    value={activeFAQ.answer}
+                    onChange={(e) => handleFieldChange("answer", e.target.value)}
+                  />
+                </div>
+
+                {/* Visibility */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Show on Website</p>
+                    <p className="text-sm text-muted-foreground">Display this FAQ on the homepage</p>
+                  </div>
+                  <Switch checked={activeFAQ.visible} onCheckedChange={handleVisibleToggle} />
+                </div>
+
+                {/* Delete */}
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:bg-destructive/10 bg-transparent"
+                  onClick={handleDeleteFAQ}
+                  disabled={saving}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete FAQ
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No FAQ selected. Select a FAQ from the list to edit.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
