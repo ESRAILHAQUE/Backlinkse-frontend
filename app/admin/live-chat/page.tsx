@@ -10,59 +10,78 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save, MessageCircle, Code, Eye, Mail, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-interface LiveChatSettings {
-  enabled: boolean
-  widgetScript: string
-  displayOn: "all" | "homepage" | "dashboard" | "exclude-dashboard"
-  autoReplyMessage: string
-  supportEmail: string
-}
+import { getActiveLiveChat, updateActiveLiveChat, type LiveChatSettings } from "@/lib/live-chat"
+import { toast } from "sonner"
 
 export default function LiveChatSettingsPage() {
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState<LiveChatSettings>({
+    _id: "",
     enabled: true,
-    widgetScript: `window.$crisp = [];
-window.CRISP_WEBSITE_ID = "your-crisp-website-id";
-(function() {
-  var d = document;
-  var s = d.createElement("script");
-  s.src = "https://client.crisp.chat/l.js";
-  s.async = 1;
-  d.getElementsByTagName("head")[0].appendChild(s);
-})();`,
+    widgetScript: "",
     displayOn: "all",
-    autoReplyMessage: "Thanks for reaching out! We'll get back to you shortly.",
-    supportEmail: "support@backlinkse.com",
+    autoReplyMessage: "",
+    supportEmail: "",
+    isActive: true,
+    createdAt: "",
+    updatedAt: "",
   })
 
   useEffect(() => {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem("liveChatSettings")
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
-    }
+    fetchSettings()
   }, [])
 
-  const handleSave = () => {
-    setSaving(true)
-    // Save to localStorage (in production this would be an API call)
-    localStorage.setItem("liveChatSettings", JSON.stringify(settings))
-    setTimeout(() => {
+  const fetchSettings = async () => {
+    try {
+      setLoading(true)
+      const data = await getActiveLiveChat()
+      setSettings(data)
+    } catch (err) {
+      console.error("Error fetching live chat settings:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to load live chat settings")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      const updatedSettings = await updateActiveLiveChat({
+        enabled: settings.enabled,
+        widgetScript: settings.widgetScript,
+        displayOn: settings.displayOn,
+        autoReplyMessage: settings.autoReplyMessage,
+        supportEmail: settings.supportEmail,
+      })
+      setSettings(updatedSettings)
+      toast.success("Live chat settings saved successfully!")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save live chat settings")
+    } finally {
       setSaving(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-      // Reload to apply changes
-      window.location.reload()
-    }, 1000)
+    }
   }
 
   const handleTestChat = () => {
     if (typeof window !== "undefined" && (window as any).$crisp) {
-      ;(window as any).$crisp.push(["do", "chat:open"])
+      ; (window as any).$crisp.push(["do", "chat:open"])
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Live Chat Settings</h1>
+            <p className="text-muted-foreground">Configure your live chat widget and support options</p>
+          </div>
+        </div>
+        <div className="text-center py-12 text-muted-foreground">Loading live chat settings...</div>
+      </div>
+    )
   }
 
   return (
@@ -85,13 +104,6 @@ window.CRISP_WEBSITE_ID = "your-crisp-website-id";
         </div>
       </div>
 
-      {saved && (
-        <Alert className="border-primary">
-          <MessageCircle className="h-4 w-4" />
-          <AlertDescription>Settings saved successfully! Page will reload to apply changes.</AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Enable/Disable Chat */}
         <Card>
@@ -108,10 +120,7 @@ window.CRISP_WEBSITE_ID = "your-crisp-website-id";
                 <p className="font-medium">Enable Live Chat</p>
                 <p className="text-sm text-muted-foreground">Show chat widget to visitors</p>
               </div>
-              <Switch
-                checked={settings.enabled}
-                onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
-              />
+              <Switch checked={settings.enabled} onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })} />
             </div>
 
             {!settings.enabled && (
@@ -139,7 +148,9 @@ window.CRISP_WEBSITE_ID = "your-crisp-website-id";
               <Label>Show Widget On</Label>
               <Select
                 value={settings.displayOn}
-                onValueChange={(value: any) => setSettings({ ...settings, displayOn: value })}
+                onValueChange={(value: "all" | "homepage" | "dashboard" | "exclude-dashboard") =>
+                  setSettings({ ...settings, displayOn: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -168,9 +179,7 @@ window.CRISP_WEBSITE_ID = "your-crisp-website-id";
               <Code className="h-5 w-5" />
               Chat Widget Script
             </CardTitle>
-            <CardDescription>
-              Add or edit your chat widget integration code (Crisp, Intercom, Tawk.to, etc.)
-            </CardDescription>
+            <CardDescription>Add or edit your chat widget integration code (Crisp, Intercom, Tawk.to, etc.)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -182,8 +191,7 @@ window.CRISP_WEBSITE_ID = "your-crisp-website-id";
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Paste the complete integration script from your live chat provider (Crisp, Intercom, Tawk.to, Zendesk,
-                etc.)
+                Paste the complete integration script from your live chat provider (Crisp, Intercom, Tawk.to, Zendesk, etc.)
               </p>
             </div>
 
