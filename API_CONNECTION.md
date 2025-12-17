@@ -162,3 +162,6 @@ To connect additional pages:
 3. Handle loading and error states
 4. Update UI based on API responses
 
+## Deployment
+
+- CI/CD via GitHub Actions deploys to `/var/www/Backlinkse/frontend` with PM2 on port 3004.
