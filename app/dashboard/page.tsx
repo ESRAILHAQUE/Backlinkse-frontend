@@ -7,6 +7,7 @@ import { Link2, TrendingUp, Globe, ArrowUpRight, Clock } from "lucide-react"
 import Link from "next/link"
 import { getDashboardStats, getRecentActivity, getCampaignProgress } from "@/lib/dashboard"
 import { Activity, CampaignProgress } from "@/lib/dashboard"
+import { toast } from "sonner"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -34,6 +35,7 @@ export default function DashboardPage() {
         setCampaign(campaignData)
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error)
+        toast.error("Failed to load dashboard data")
       } finally {
         setLoading(false)
       }
