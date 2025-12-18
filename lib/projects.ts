@@ -4,6 +4,11 @@
 
 import { api } from './api';
 
+export interface TargetPage {
+    anchor: string;
+    url: string;
+}
+
 export interface Project {
     _id: string;
     name: string;
@@ -11,6 +16,12 @@ export interface Project {
     status: 'Active' | 'Paused' | 'Completed';
     linksBuilt: number;
     targetLinks: number;
+    category?: string;
+    sensitiveTopics?: string[];
+    countries?: string[];
+    languages?: string[];
+    taskForPublisher?: string;
+    targetPages?: TargetPage[];
     startDate: string;
     lastActivity: string;
     createdAt: string;
@@ -45,14 +56,22 @@ export const getProjectById = async (id: string): Promise<Project> => {
     return response.data!.project;
 };
 
-/**
- * Create new project
- */
-export const createProject = async (data: {
+export interface CreateProjectData {
     name: string;
     domain: string;
     targetLinks: number;
-}): Promise<Project> => {
+    category?: string;
+    sensitiveTopics?: string[];
+    countries?: string[];
+    languages?: string[];
+    taskForPublisher?: string;
+    targetPages?: TargetPage[];
+}
+
+/**
+ * Create new project
+ */
+export const createProject = async (data: CreateProjectData): Promise<Project> => {
     const response = await api.post<{ project: Project }>('/projects', data);
     return response.data!.project;
 };
